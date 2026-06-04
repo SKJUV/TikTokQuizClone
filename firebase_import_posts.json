@@ -1,0 +1,21 @@
+{
+  "posts": {
+    "quiz_1": {
+      "auteur": "Etudiant_UY1@uy1.uninet.cm",
+      "description": "TP1 - Architecture des Systèmes Mobiles 🧠",
+      "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "likes": 0,
+      "shares": 0,
+      "quiz": {
+        "question": "En Génie Logiciel, quel design pattern est utilisé par les hooks React comme useState ?",
+        "options": [
+          "Le pattern Factory",
+          "Le pattern Observer",
+          "Le pattern Singleton",
+          "Le pattern Prototype"
+        ],
+        "reponseCorrecte": 1
+      }
+    }
+  }
+}

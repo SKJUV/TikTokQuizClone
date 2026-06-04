@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "posts": {
+      ".read": true,
+      ".write": "auth != null",
+      "$postId": {
+        "likedBy": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "comments": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
