@@ -41,6 +41,20 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Secrets & environnement (NE JAMAIS committer)
+.env
+serviceAccountKey.json
+*.serviceAccount.json
+
+# Firebase CLI
+.firebase/
+firebase-debug.log
+database-debug.log
+
+# Captures d'écran locales
+capture_tiktok.png
+screenshot.png
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the

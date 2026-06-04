@@ -1,97 +1,106 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# TikTok Quiz UY1 🧠
 
-# Getting Started
+Application mobile **React Native** (Android) de quiz au format TikTok : un flux vertical
+plein écran où chaque vidéo porte un quiz à 4 réponses. Les étudiants s'authentifient,
+répondent aux quiz, gagnent des points, commentent, likent, et peuvent publier leurs
+propres quiz ou vidéos. Backend **Firebase** (Auth + Realtime Database + Storage).
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+> Projet de TP — Architecture des Systèmes Mobiles, Université de Yaoundé I.
+> Documentation technique complète : voir [`DOCUMENTATION.md`](./DOCUMENTATION.md).
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Stack technique
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **React Native 0.85 / React 19** + **TypeScript**
+- **Firebase** : Auth (email + Google), Realtime Database, Storage
+- `react-native-video`, `react-native-image-picker`, `react-native-svg`, `@react-native-async-storage/async-storage`
 
+---
+
+## Démarrage rapide
+
+### 1. Prérequis
+- Node.js >= 22.11
+- Environnement React Native Android prêt (JDK 17, Android SDK, un émulateur ou un appareil).
+  Voir [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment).
+
+### 2. Installation
 ```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+git clone <url-du-repo>
+cd TikTokQuizClone
+npm install
 ```
 
-## Step 2: Build and run your app
+### 3. Configuration Firebase (indispensable)
+1. **`android/app/google-services.json`** : doit être présent (fourni dans le repo, ou
+   téléchargé depuis la console Firebase du projet `tiktok-f72e6`).
+2. **`.env`** : copie le modèle et remplis-le.
+   ```sh
+   cp .env.example .env
+   ```
+   ```
+   FIREBASE_WEB_CLIENT_ID=126002780914-xxxx.apps.googleusercontent.com
+   ```
+   Le `.env` est **ignoré par git** (secrets).
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
+### 4. Lancer l'app
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm start          # démarre Metro
+npm run android    # build + lance sur émulateur/appareil
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
+### 5. Vérifications
 ```sh
-bundle install
+npx tsc --noEmit   # types
+npm test           # tests
+npm run lint       # lint
 ```
 
-Then, and every time you update your native dependencies, run:
+---
 
-```sh
-bundle exec pod install
+## 👥 Pour les membres du groupe (onboarding)
+
+Vous avez été ajoutés au **projet Firebase `tiktok-f72e6`**. Pour contribuer :
+
+1. **Cloner + `npm install`** (étapes ci-dessus).
+2. **Récupérer `google-services.json`** : Console Firebase → ⚙️ Paramètres du projet →
+   *Vos applications* → Android `com.tiktokquiz` → télécharger, et le placer dans
+   `android/app/`.
+3. **Créer votre `.env`** à partir de `.env.example`.
+4. **Connectez-vous au CLI Firebase** une seule fois :
+   ```sh
+   npm i -g firebase-tools
+   firebase login
+   ```
+5. **Déployer les règles** (le projet par défaut est déjà défini dans `.firebaserc`) :
+   ```sh
+   firebase deploy --only database,storage
+   ```
+
+➡️ **Lisez [`DOCUMENTATION.md`](./DOCUMENTATION.md)** : il contient l'architecture complète,
+le modèle de données, **tout ce qui a déjà été fait**, et la **feuille de route** pour
+savoir quoi développer ensuite (qui prend quoi).
+
+---
+
+## Structure du projet
+
 ```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+TikTokQuizClone/
+├── App.tsx                     # Point d'entrée + routage auth
+├── src/
+│   ├── screens/
+│   │   ├── AuthScreen.tsx       # Connexion / inscription (email + Google)
+│   │   ├── MainContainer.tsx    # Navigation à 3 onglets (Accueil / + / Profil)
+│   │   ├── FeedScreen.tsx       # Flux vertical + quiz + likes/commentaires/partage
+│   │   ├── CreateScreen.tsx     # Création de quiz + upload vidéo (Storage)
+│   │   └── ProfileScreen.tsx    # Profil + score + thème + déconnexion
+│   ├── components/ErrorBoundary.tsx
+│   └── types/                   # Types TS + déclaration @env
+├── quiz.json                   # Données de secours (mode hors-ligne)
+├── database.rules.json         # Règles de sécurité Realtime Database
+├── storage.rules               # Règles de sécurité Storage
+├── firebase.json / .firebaserc # Config de déploiement Firebase
+└── scripts/                    # Scripts admin (seed vidéos via service account)
 ```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.

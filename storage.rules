@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Les vidéos sont lisibles par tous, mais seul un utilisateur
+    // authentifié peut en uploader (dossier /videos).
+    match /videos/{fichier} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;
+    }
+  }
+}
