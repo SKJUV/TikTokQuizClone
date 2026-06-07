@@ -121,19 +121,20 @@ export const uploaderVersDrive = async (
 };
 
 export type PostNorm = PostTikTok & {
-  likedBy?: Record<string, boolean>;
   mediaType: 'photo' | 'video';
   createdAt: number;
+  hashtags: string[];
   correctAnswers: Record<string, { displayName: string; email: string }>;
 };
 
 export const normaliserPost = (id: string, post: any): PostNorm => {
   const convertedUrl = convertirLienDrive(post.videoUrl);
+  const description = post.description || 'Quiz communautaire';
   return {
     id: post.id ?? id,
     videoUrl: urlValide(convertedUrl) ? convertedUrl : VIDEO_PAR_DEFAUT,
     auteur: post.auteur || 'Anonyme',
-    description: post.description || 'Quiz communautaire',
+    description,
     quiz: post.quiz
       ? {
           question: post.quiz.question || 'Question indisponible',
@@ -147,8 +148,12 @@ export const normaliserPost = (id: string, post: any): PostNorm => {
     likes: typeof post.likes === 'number' ? post.likes : 0,
     shares: typeof post.shares === 'number' ? post.shares : 0,
     likedBy: post.likedBy || {},
+    comments: post.comments || undefined,
     mediaType: post.mediaType === 'photo' ? 'photo' : 'video',
     createdAt: typeof post.createdAt === 'number' ? post.createdAt : Date.now(),
+    hashtags: Array.isArray(post.hashtags)
+      ? post.hashtags.map((tag: string) => tag.toLowerCase())
+      : extraireHashtags(description),
     correctAnswers: post.correctAnswers || {},
   };
 };

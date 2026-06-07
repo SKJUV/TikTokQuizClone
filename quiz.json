@@ -1,8 +1,10 @@
 {
   "quiz_1": {
     "auteur": "Etudiant_UY1@uy1.uninet.cm",
-    "description": "TP1 - Architecture des Systèmes Mobiles 🧠",
+    "description": "TP1 - Architecture des Systèmes Mobiles 🧠 #genielogiciel #react",
     "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "mediaType": "video",
+    "createdAt": 1717500000000,
     "likes": 0,
     "shares": 0,
     "quiz": {

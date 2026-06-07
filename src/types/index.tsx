@@ -4,6 +4,12 @@ export interface QuizQuestion {
   reponseCorrecte: number;
 }
 
+export interface CommentairePost {
+  auteur: string;
+  texte: string;
+  createdAt: number;
+}
+
 export interface PostTikTok {
   id: string;
   videoUrl: string;
@@ -14,5 +20,8 @@ export interface PostTikTok {
   shares?: number;
   mediaType?: 'photo' | 'video';
   createdAt?: number;
+  hashtags?: string[];
+  comments?: Record<string, CommentairePost>;
+  likedBy?: Record<string, boolean>;
   correctAnswers?: Record<string, { displayName: string; email: string }>;
 }

@@ -63,6 +63,7 @@ export default function CreateScreen(): React.JSX.Element {
         setProgression(p);
       });
       setVideoUrl(publicUrl);
+      setProgression(1);
       Alert.alert('Succès ! 🎉', `Média importé et hébergé avec succès sur le Drive de l'application.`);
     } catch (e: any) {
       console.error(e);

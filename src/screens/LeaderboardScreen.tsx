@@ -29,52 +29,53 @@ export default function LeaderboardScreen(): React.JSX.Element {
   const auth = getAuth(getApp());
   const uidConnecte = auth.currentUser?.uid;
 
-  const chargerClassement = () => {
+  useEffect(() => {
     const db = getDatabase(getApp());
     const reference = ref(db, '/posts');
 
-    onValue(reference, (snap) => {
-      const val = snap.val() || {};
-      const posts = Object.keys(val).map((k) => normaliserPost(k, val[k]));
-      
-      const userScores: Record<string, { score: number; displayName: string; email: string }> = {};
+    const desabonner = onValue(
+      reference,
+      (snap) => {
+        const val = snap.val() || {};
+        const posts = Object.keys(val).map((k) => normaliserPost(k, val[k]));
 
-      posts.forEach((post) => {
-        if (post.correctAnswers) {
-          Object.entries(post.correctAnswers).forEach(([uid, info]: [string, any]) => {
-            if (!userScores[uid]) {
-              userScores[uid] = {
-                score: 0,
-                displayName: info.displayName || 'Étudiant anonyme',
-                email: info.email || '',
-              };
-            }
-            userScores[uid].score += 1;
-          });
-        }
-      });
+        const userScores: Record<string, { score: number; displayName: string; email: string }> = {};
 
-      const list: UserEntry[] = Object.entries(userScores).map(([uid, info]) => ({
-        uid,
-        ...info,
-      }));
+        posts.forEach((post) => {
+          if (post.correctAnswers) {
+            Object.entries(post.correctAnswers).forEach(([answerUid, info]) => {
+              if (!userScores[answerUid]) {
+                userScores[answerUid] = {
+                  score: 0,
+                  displayName: info.displayName || 'Étudiant anonyme',
+                  email: info.email || '',
+                };
+              }
+              userScores[answerUid].score += 1;
+            });
+          }
+        });
 
-      // Trier par score décroissant, puis par nom
-      list.sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName));
+        const list: UserEntry[] = Object.entries(userScores).map(([answerUid, info]) => ({
+          uid: answerUid,
+          ...info,
+        }));
 
-      setUsers(list);
-      setUsersFiltrés(list);
-      setLoading(false);
-      setRafraichissement(false);
-    }, (error) => {
-      console.error(error);
-      setLoading(false);
-      setRafraichissement(false);
-    });
-  };
+        list.sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName));
 
-  useEffect(() => {
-    chargerClassement();
+        setUsers(list);
+        setUsersFiltrés(list);
+        setLoading(false);
+        setRafraichissement(false);
+      },
+      (error) => {
+        console.error(error);
+        setLoading(false);
+        setRafraichissement(false);
+      },
+    );
+
+    return desabonner;
   }, []);
 
   const gererRecherche = (text: string) => {
@@ -171,7 +172,7 @@ export default function LeaderboardScreen(): React.JSX.Element {
         keyExtractor={(item) => item.uid}
         onRefresh={() => {
           setRafraichissement(true);
-          chargerClassement();
+          setTimeout(() => setRafraichissement(false), 600);
         }}
         refreshing={rafraichissement}
         ListEmptyComponent={

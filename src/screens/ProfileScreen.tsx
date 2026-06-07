@@ -13,16 +13,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, signOut } from '@react-native-firebase/auth';
 import { getDatabase, ref, onValue, remove } from '@react-native-firebase/database';
-import { PostTikTok } from '../types';
-import { normaliserPost } from '../utils/feedHelpers';
-
-type PostAvecDate = PostTikTok & { createdAt?: number; comments?: any; correctAnswers?: any };
+import { PostNorm, normaliserPost } from '../utils/feedHelpers';
 
 export default function ProfileScreen(): React.JSX.Element {
   const [sombre, setSombre] = useState(true);
   const [score, setScore] = useState(0);
   const [rang, setRang] = useState<string | number>('...');
-  const [userPosts, setUserPosts] = useState<PostAvecDate[]>([]);
+  const [userPosts, setUserPosts] = useState<PostNorm[]>([]);
   const [loading, setLoading] = useState(true);
 
   const auth = getAuth(getApp());
@@ -45,10 +42,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
     const unsubscribe = onValue(reference, (snap) => {
       const val = snap.val() || {};
-      const postsList = Object.keys(val).map((k) => ({
-        ...normaliserPost(k, val[k]),
-        createdAt: val[k].createdAt,
-      }));
+      const postsList = Object.keys(val).map((k) => normaliserPost(k, val[k]));
 
       // 1. Calculer le score du user (occurrences de son uid dans correctAnswers)
       let scoreCalcule = 0;

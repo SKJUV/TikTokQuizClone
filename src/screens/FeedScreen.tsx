@@ -21,7 +21,7 @@ import { getAuth } from '@react-native-firebase/auth';
 import { getDatabase, ref, onValue, push, runTransaction } from '@react-native-firebase/database';
 import Video from 'react-native-video';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { normaliserPost, postsLocaux } from '../utils/feedHelpers';
+import { normaliserPost, postsLocaux, PostNorm } from '../utils/feedHelpers';
 
 const { height: ECRAN_HAUTEUR, width: ECRAN_LARGEUR } = Dimensions.get('screen');
 
@@ -53,8 +53,8 @@ const IconeRecherche = () => (
 type Commentaire = { auteur: string; texte: string };
 
 export default function FeedScreen(): React.JSX.Element {
-  const [posts, setPosts] = useState<any[]>([]);
-  const [postsFiltrés, setPostsFiltrés] = useState<any[]>([]);
+  const [posts, setPosts] = useState<PostNorm[]>([]);
+  const [postsFiltrés, setPostsFiltrés] = useState<PostNorm[]>([]);
   const [indexActuel, setIndexActuel] = useState(0);
   const [reponseSelectionnee, setReponseSelectionnee] = useState<number | null>(null);
   const [chargementDonnees, setChargementDonnees] = useState(true);
@@ -150,7 +150,7 @@ export default function FeedScreen(): React.JSX.Element {
     const filtre = posts.filter((post) => {
       const descMatch = post.description?.toLowerCase().includes(cleanQuery);
       const questionMatch = post.quiz?.question?.toLowerCase().includes(cleanQuery);
-      const tagMatch = post.hashtags?.some((tag: string) => tag.toLowerCase().includes(tagQuery));
+      const tagMatch = post.hashtags.some((tag) => tag.toLowerCase().includes(tagQuery));
       return descMatch || questionMatch || tagMatch;
     });
     setPostsFiltrés(filtre);
