@@ -6,6 +6,7 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
+    "typecheck": "node scripts/typecheck.js",
     "start": "react-native start",
     "test": "jest"
   },
@@ -17,8 +18,7 @@
     "@react-native-firebase/storage": "^24.0.0",
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-native/new-app-screen": "0.85.3",
-    "firebase-admin": "^13.10.0",
-    "googleapis": "^173.0.0",
+    
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-image-picker": "^8.2.1",
@@ -51,7 +51,18 @@
     "prettier": "2.8.8",
     "react-native-dotenv": "^3.4.11",
     "react-test-renderer": "19.2.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "firebase-admin": "^13.10.0",
+    "googleapis": "^173.0.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^14.0.0"
+  },
+  "prepare": "husky install",
+  "lint-staged": {
+    "**/*.{js,ts,tsx}": [
+      "npm run lint -- --fix",
+      "npm run typecheck"
+    ]
   },
   "engines": {
     "node": ">= 22.11.0"

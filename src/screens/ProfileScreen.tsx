@@ -3,7 +3,12 @@ import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp } from '@react-native-firebase/app';
 import { getAuth, signOut } from '@react-native-firebase/auth';
-import { getDatabase, ref, onValue } from '@react-native-firebase/database';
+import { getDatabase, ref, onValue, query, orderByChild, equalTo, remove } from '@react-native-firebase/database';
+import { PostTikTok } from '../types';
+import { normaliserPost } from '../utils/feedHelpers';
+import { FlatList, Alert } from 'react-native';
+
+type PostAvecDate = PostTikTok & { createdAt?: number };
 
 export default function ProfileScreen(): React.JSX.Element {
   const [sombre, setSombre] = useState(true);
@@ -11,6 +16,8 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const utilisateur = getAuth(getApp()).currentUser;
   const uid = utilisateur?.uid || 'anonyme';
+  const userEmail = utilisateur?.email || '';
+  const [userPosts, setUserPosts] = useState<PostAvecDate[]>([]);
 
   useEffect(() => {
     AsyncStorage.getItem('theme').then((val) => {
@@ -22,6 +29,37 @@ export default function ProfileScreen(): React.JSX.Element {
     const reference = ref(getDatabase(getApp()), `/users/${uid}/score`);
     return onValue(reference, (snap) => setScore(snap.val() || 0));
   }, [uid]);
+
+  useEffect(() => {
+    if (!userEmail) return;
+    const db = getDatabase(getApp());
+    const q = query(ref(db, '/posts'), orderByChild('auteur'), equalTo(userEmail));
+    const unsub = onValue(q, (snap) => {
+      const val = snap.val() || {};
+      const list = Object.keys(val).map((k) => ({ ...normaliserPost(k, val[k]), createdAt: val[k].createdAt }));
+      setUserPosts(list);
+    });
+    return () => unsub();
+  }, [userEmail]);
+
+  const confirmerEtSupprimer = (postId: string) => {
+    Alert.alert('Confirmer suppression', 'Supprimer ce post ? Cette action est irréversible.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await remove(ref(getDatabase(getApp()), `/posts/${postId}`));
+            Alert.alert('Supprimé', 'Le post a été supprimé.');
+          } catch (e) {
+            console.error(e);
+            Alert.alert('Erreur', "Impossible de supprimer le post.");
+          }
+        },
+      },
+    ]);
+  };
 
   const modifierTheme = async (statut: boolean) => {
     setSombre(statut);
@@ -42,6 +80,27 @@ export default function ProfileScreen(): React.JSX.Element {
       <View style={styles.scoreCarte}>
         <Text style={styles.scoreValeur}>{score}</Text>
         <Text style={styles.scoreLabel}>Bonnes réponses</Text>
+      </View>
+
+      {/* Liste des posts de l'utilisateur */}
+      <View style={{ width: '100%', marginTop: 20, marginBottom: 10 }}>
+        <Text style={[{ color: couleurTexte, fontWeight: '700', marginBottom: 8 }]}>Vos publications</Text>
+        <FlatList
+          data={userPosts}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={<Text style={{ color: '#aaa' }}>Aucune publication pour le moment.</Text>}
+          renderItem={({ item }) => (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <View>
+                <Text style={{ color: couleurTexte, fontWeight: '600' }}>{item.quiz?.question || item.description}</Text>
+                <Text style={{ color: '#888', fontSize: 12 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</Text>
+              </View>
+              <TouchableOpacity style={{ padding: 8 }} onPress={() => confirmerEtSupprimer(item.id)}>
+                <Text style={{ color: '#fe2c55', fontWeight: '700' }}>Supprimer</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
       </View>
 
       <View style={styles.ligne}>

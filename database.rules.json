@@ -2,22 +2,55 @@
   "rules": {
     "posts": {
       ".read": true,
-      ".write": "auth != null",
       "$postId": {
+        ".write": "auth != null && ( (!data.exists() && newData.exists()) || (data.exists() && data.child('auteur').val() === auth.token.email) )",
+        
+        ".validate": "newData.hasChildren(['auteur','videoUrl','createdAt'])",
+        "auteur": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "description": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
+        },
+        "videoUrl": {
+          ".validate": "newData.isString() && newData.val().matches(/^https?:\\/\\//)"
+        },
+        "likes": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "shares": {
+          ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
         "likedBy": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.val() === true"
           }
         },
         "comments": {
-          ".write": "auth != null"
+          "$commentId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['auteur','texte','createdAt']) && newData.child('auteur').isString() && newData.child('texte').isString() && newData.child('createdAt').isNumber()"
+          }
+        },
+        "quiz": {
+          ".validate": "!newData.exists() || (newData.hasChildren(['question','options','reponseCorrecte']) && newData.child('question').isString() && newData.child('options').hasChildren(['0','1','2','3']) && newData.child('options/0').isString() && newData.child('options/1').isString() && newData.child('options/2').isString() && newData.child('options/3').isString() && newData.child('reponseCorrecte').isNumber() && newData.child('reponseCorrecte').val() >= 0 && newData.child('reponseCorrecte').val() <= 3)"
         }
       }
     },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid",
+        "score": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "displayName": {
+          ".validate": "!newData.exists() || newData.isString()"
+        }
       }
     }
   }

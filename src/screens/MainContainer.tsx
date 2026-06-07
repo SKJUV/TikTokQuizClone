@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-na
 import FeedScreen from './FeedScreen';
 import CreateScreen from './CreateScreen';
 import ProfileScreen from './ProfileScreen';
+import LeaderboardScreen from './LeaderboardScreen';
 
-type Onglet = 'accueil' | 'creer' | 'profil';
+type Onglet = 'accueil' | 'creer' | 'profil' | 'leaderboard';
 
 export default function MainContainer(): React.JSX.Element {
   const [ongletActuel, setOngletActuel] = useState<Onglet>('accueil');
@@ -16,6 +17,7 @@ export default function MainContainer(): React.JSX.Element {
         {ongletActuel === 'accueil' && <FeedScreen />}
         {ongletActuel === 'creer' && <CreateScreen />}
         {ongletActuel === 'profil' && <ProfileScreen />}
+        {ongletActuel === 'leaderboard' && <LeaderboardScreen />}
       </View>
 
       {/* ─── BARRE DE NAVIGATION BASSE TIKTOK NATIVE ─── */}
@@ -48,6 +50,11 @@ export default function MainContainer(): React.JSX.Element {
               </Text>
             </View>
           </View>
+        </TouchableOpacity>
+
+        {/* Onglet Leaderboard */}
+        <TouchableOpacity style={styles.boutonOnglet} onPress={() => setOngletActuel('leaderboard')}>
+          <Text style={[styles.texteOnglet, ongletActuel === 'leaderboard' && styles.ongletActif]}>Classement</Text>
         </TouchableOpacity>
 
         {/* Onglet Profil */}
