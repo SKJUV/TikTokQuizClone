@@ -195,8 +195,7 @@ Tâches indépendantes, à se répartir. Chacune est isolée pour limiter les co
 7. **Validation des emails institutionnels** (`@uy1.uninet.cm`) à l'inscription.
 
 ### Priorité basse / bonus
-8. **Login GitHub réel** — deep-link + Cloud Function pour l'échange de token OAuth
-   (la version actuelle a été retirée car non fonctionnelle).
+8. **Login GitHub réel** — ouverture du navigateur GitHub + redirection custom scheme + Firebase Auth via `signInWithCredential`.
 9. **Tests** — ajouter des tests unitaires sur `normaliserPost`, `validerReponse`.
 10. **Enregistrement vidéo in-app** (caméra) au lieu d'une sélection en galerie.
 
