@@ -12,4 +12,7 @@ export interface PostTikTok {
   quiz?: QuizQuestion;
   likes?: number;
   shares?: number;
+  mediaType?: 'photo' | 'video';
+  createdAt?: number;
+  correctAnswers?: Record<string, { displayName: string; email: string }>;
 }

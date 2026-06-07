@@ -4,8 +4,7 @@
       ".read": true,
       "$postId": {
         ".write": "auth != null && ( (!data.exists() && newData.exists()) || (data.exists() && data.child('auteur').val() === auth.token.email) )",
-        
-        ".validate": "newData.hasChildren(['auteur','videoUrl','createdAt'])",
+        ".validate": "newData.hasChildren(['auteur','videoUrl','createdAt','mediaType'])",
         "auteur": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
         },
@@ -15,10 +14,15 @@
         "videoUrl": {
           ".validate": "newData.isString() && newData.val().matches(/^https?:\\/\\//)"
         },
+        "mediaType": {
+          ".validate": "newData.isString() && (newData.val() === 'photo' || newData.val() === 'video')"
+        },
         "likes": {
+          ".write": "auth != null",
           ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
         },
         "shares": {
+          ".write": "auth != null",
           ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
         },
         "createdAt": {
@@ -38,18 +42,12 @@
         },
         "quiz": {
           ".validate": "!newData.exists() || (newData.hasChildren(['question','options','reponseCorrecte']) && newData.child('question').isString() && newData.child('options').hasChildren(['0','1','2','3']) && newData.child('options/0').isString() && newData.child('options/1').isString() && newData.child('options/2').isString() && newData.child('options/3').isString() && newData.child('reponseCorrecte').isNumber() && newData.child('reponseCorrecte').val() >= 0 && newData.child('reponseCorrecte').val() <= 3)"
-        }
-      }
-    },
-    "users": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        "score": {
-          ".validate": "newData.isNumber() && newData.val() >= 0"
         },
-        "displayName": {
-          ".validate": "!newData.exists() || newData.isString()"
+        "correctAnswers": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['displayName','email']) && newData.child('displayName').isString() && newData.child('email').isString()"
+          }
         }
       }
     }

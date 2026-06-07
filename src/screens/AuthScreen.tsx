@@ -108,7 +108,10 @@ export default function AuthScreen() {
     if (!email || !motDePasse) return Alert.alert('Erreur', 'Veuillez remplir tous les champs');
     setChargement(true);
     try {
-      await signInWithEmailAndPassword(auth, email, motDePasse);
+      const cred = await signInWithEmailAndPassword(auth, email, motDePasse);
+      if (cred.user && !cred.user.displayName) {
+        await cred.user.updateProfile({ displayName: email.split('@')[0] });
+      }
     } catch (error: any) {
       Alert.alert('Erreur de connexion', error.message);
     } finally {
@@ -118,9 +121,18 @@ export default function AuthScreen() {
 
   const gererInscription = async () => {
     if (!email || !motDePasse) return Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+    if (!email.toLowerCase().endsWith('@uy1.uninet.cm')) {
+      return Alert.alert(
+        'E-mail non institutionnel',
+        'L\'inscription par e-mail est réservée aux étudiants de l\'UY1. Veuillez utiliser une adresse se terminant par @uy1.uninet.cm.'
+      );
+    }
     setChargement(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, motDePasse);
+      const cred = await createUserWithEmailAndPassword(auth, email, motDePasse);
+      if (cred.user) {
+        await cred.user.updateProfile({ displayName: email.split('@')[0] });
+      }
       Alert.alert('Succès 🎉', 'Compte étudiant créé avec succès !');
     } catch (error: any) {
       Alert.alert("Erreur d'inscription", error.message);
@@ -137,7 +149,11 @@ export default function AuthScreen() {
       const idToken = response.data?.idToken;
       if (!idToken) throw new Error("Impossible de récupérer le jeton Google (idToken).");
       const credential = GoogleAuthProvider.credential(idToken);
-      await signInWithCredential(auth, credential);
+      const cred = await signInWithCredential(auth, credential);
+      if (cred.user && !cred.user.displayName) {
+        const defaultName = cred.user.email ? cred.user.email.split('@')[0] : 'Étudiant Google';
+        await cred.user.updateProfile({ displayName: defaultName });
+      }
     } catch (error: any) {
       Alert.alert('Erreur Google Auth', error.message);
     } finally {
@@ -200,7 +216,11 @@ export default function AuthScreen() {
       }
 
       const credential = GithubAuthProvider.credential(tokenData.access_token);
-      await signInWithCredential(auth, credential);
+      const cred = await signInWithCredential(auth, credential);
+      if (cred.user && !cred.user.displayName) {
+        const defaultName = cred.user.email ? cred.user.email.split('@')[0] : 'Étudiant GitHub';
+        await cred.user.updateProfile({ displayName: defaultName });
+      }
     } catch (error: any) {
       Alert.alert('Erreur GitHub Auth', error.message);
     } finally {
