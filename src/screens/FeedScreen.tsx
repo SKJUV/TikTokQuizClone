@@ -27,7 +27,7 @@ import { getDatabase, ref, onValue, push, runTransaction } from '@react-native-f
 import Video from 'react-native-video';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { normaliserPost, postsLocaux, PostNorm, resoudreUrlsMedia } from '../utils/feedHelpers';
+import { normaliserPost, postsLocaux, PostNorm, resoudreUrlsMedia, extraireIdDrive } from '../utils/feedHelpers';
 
 const ECRAN_LARGEUR = Dimensions.get('window').width;
 
@@ -92,6 +92,7 @@ export default function FeedScreen(): React.JSX.Element {
   const [texteCommentaire, setTexteCommentaire] = useState('');
   const [mediasEnErreur, setMediasEnErreur] = useState<Record<string, boolean>>({});
   const [indexUrlMedia, setIndexUrlMedia] = useState<Record<string, number>>({});
+  const [forcerAffichagePhoto, setForcerAffichagePhoto] = useState<Record<string, boolean>>({});
   const [videoPret, setVideoPret] = useState(false);
   const [hauteurPage, setHauteurPage] = useState(Dimensions.get('window').height * 0.85);
   const [phaseOverlay, setPhaseOverlay] = useState<PhaseOverlay>('cache');
@@ -316,14 +317,31 @@ export default function FeedScreen(): React.JSX.Element {
     setMediasEnErreur((prev) => (prev[postId] ? prev : { ...prev, [postId]: true }));
   };
 
+  const obtenirTypeAffichage = (item: PostNorm): 'photo' | 'video' => {
+    if (forcerAffichagePhoto[item.id]) return 'photo';
+    return item.mediaType;
+  };
+
+  const obtenirUrlsMediaItem = (item: PostNorm): string[] => {
+    const type = obtenirTypeAffichage(item);
+    if (item.urlsMedia?.length && type === item.mediaType && !forcerAffichagePhoto[item.id]) {
+      return item.urlsMedia;
+    }
+    const fileId = item.driveFileId || extraireIdDrive(item.videoUrl);
+    if (fileId) {
+      return resoudreUrlsMedia(`https://drive.google.com/uc?id=${fileId}`, type);
+    }
+    return resoudreUrlsMedia(item.videoUrl, type);
+  };
+
   const obtenirUrlMedia = (item: PostNorm): string => {
+    const liste = obtenirUrlsMediaItem(item);
     const idx = indexUrlMedia[item.id] ?? 0;
-    const liste = item.urlsMedia?.length ? item.urlsMedia : resoudreUrlsMedia(item.videoUrl, item.mediaType);
     return liste[Math.min(idx, liste.length - 1)] || item.videoUrl;
   };
 
   const essayerUrlSuivante = (item: PostNorm) => {
-    const liste = item.urlsMedia?.length ? item.urlsMedia : resoudreUrlsMedia(item.videoUrl, item.mediaType);
+    const liste = obtenirUrlsMediaItem(item);
     const idxActuel = indexUrlMedia[item.id] ?? 0;
     if (idxActuel + 1 < liste.length) {
       setIndexUrlMedia((prev) => ({ ...prev, [item.id]: idxActuel + 1 }));
@@ -338,6 +356,17 @@ export default function FeedScreen(): React.JSX.Element {
   };
 
   const gererErreurMedia = (item: PostNorm) => {
+    const fileId = item.driveFileId || extraireIdDrive(item.videoUrl);
+    if (item.mediaType === 'video' && fileId && !forcerAffichagePhoto[item.id]) {
+      setForcerAffichagePhoto((prev) => ({ ...prev, [item.id]: true }));
+      setIndexUrlMedia((prev) => ({ ...prev, [item.id]: 0 }));
+      setMediasEnErreur((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      return;
+    }
     if (essayerUrlSuivante(item)) return;
     marquerMediaEnErreur(item.id);
   };
@@ -359,6 +388,7 @@ export default function FeedScreen(): React.JSX.Element {
 
   const renderMedia = (item: PostNorm, index: number) => {
     const estVisible = index === indexActuel;
+    const typeAffichage = obtenirTypeAffichage(item);
     const mode = getModeQuiz(item);
     const quizTermine = phaseOverlay === 'termine';
     const videoFinie = mode === 'apres_video' && phaseOverlay !== 'cache';
@@ -372,29 +402,47 @@ export default function FeedScreen(): React.JSX.Element {
       return (
         <View style={[styles.mediaPlaceholder, styles.mediaErreur, { height: hauteurPage }]}>
           <Text style={styles.mediaErreurTexte}>Média indisponible</Text>
-          <TouchableOpacity style={styles.boutonReessayer} onPress={() => {
-            setIndexUrlMedia((prev) => ({ ...prev, [item.id]: 0 }));
-            setMediasEnErreur((prev) => {
-              const next = { ...prev };
-              delete next[item.id];
-              return next;
-            });
-          }}>
+          <TouchableOpacity
+            style={styles.boutonReessayer}
+            onPress={() => {
+              setIndexUrlMedia((prev) => ({ ...prev, [item.id]: 0 }));
+              setForcerAffichagePhoto((prev) => {
+                const next = { ...prev };
+                delete next[item.id];
+                return next;
+              });
+              setMediasEnErreur((prev) => {
+                const next = { ...prev };
+                delete next[item.id];
+                return next;
+              });
+            }}
+          >
             <Text style={styles.boutonReessayerTexte}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       );
     }
 
-    if (item.mediaType === 'photo') {
+    if (typeAffichage === 'photo') {
       return (
-        <Image
-          key={`${item.id}-${urlLecture}`}
-          source={{ uri: urlLecture }}
-          style={[styles.mediaPlein, { height: hauteurPage }]}
-          resizeMode="cover"
-          onError={() => gererErreurMedia(item)}
-        />
+        <View style={[styles.mediaPlein, { height: hauteurPage }]}>
+          <Image
+            key={`${item.id}-${urlLecture}`}
+            source={{ uri: urlLecture }}
+            style={[styles.mediaPlein, { height: hauteurPage }]}
+            resizeMode="cover"
+            onLoad={() => {
+              setMediasEnErreur((prev) => {
+                if (!prev[item.id]) return prev;
+                const next = { ...prev };
+                delete next[item.id];
+                return next;
+              });
+            }}
+            onError={() => gererErreurMedia(item)}
+          />
+        </View>
       );
     }
 
@@ -656,6 +704,7 @@ export default function FeedScreen(): React.JSX.Element {
             reponseSelectionnee,
             videoPret,
             phaseOverlay,
+            forcerAffichagePhoto,
             indexUrlMedia,
             hauteurPage,
           }}

@@ -16,7 +16,7 @@ import { getApp } from '@react-native-firebase/app';
 import { getAuth } from '@react-native-firebase/auth';
 import { getDatabase, ref, push } from '@react-native-firebase/database';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
-import { uploaderVersDrive, extraireHashtags, VIDEO_PAR_DEFAUT } from '../utils/feedHelpers';
+import { uploaderVersDrive, extraireHashtags, VIDEO_PAR_DEFAUT, detecterTypeMedia, mimeTypeParDefaut } from '../utils/feedHelpers';
 
 type SectionCreation = 'media' | 'quiz';
 
@@ -83,7 +83,9 @@ export default function CreateScreen(): React.JSX.Element {
   const [ajouterQuiz, setAjouterQuiz] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState('');
-  const [mediaType, setMediaType] = useState<'photo' | 'video'>('video');
+  const [mediaType, setMediaType] = useState<'photo' | 'video'>('photo');
+  const [mimeType, setMimeType] = useState('image/jpeg');
+  const [driveFileId, setDriveFileId] = useState('');
   const [progression, setProgression] = useState<number | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
 
@@ -103,7 +105,9 @@ export default function CreateScreen(): React.JSX.Element {
     setIndexCorrectMedia(null);
     setAjouterQuiz(false);
     setVideoUrl('');
-    setMediaType('video');
+    setMediaType('photo');
+    setMimeType('image/jpeg');
+    setDriveFileId('');
     setProgression(null);
   };
 
@@ -134,28 +138,29 @@ export default function CreateScreen(): React.JSX.Element {
     };
   };
 
-  const traiterMediaSelectionne = async (asset: any) => {
+  const traiterMediaSelectionne = async (asset: any, intention: 'photo' | 'video') => {
     if (!asset?.uri) return;
 
     setProgression(0);
-    const estVideo =
-      asset.type?.startsWith('video') ||
-      asset.duration !== undefined ||
-      asset.fileName?.endsWith('.mp4') ||
-      asset.fileName?.endsWith('.mov');
-    const typeMedia: 'photo' | 'video' = estVideo ? 'video' : 'photo';
+    const typeMedia = detecterTypeMedia(asset.type, asset.fileName, intention, asset.duration);
     setMediaType(typeMedia);
 
-    const nomFichier = `app_upload_${Date.now()}_${asset.fileName || (estVideo ? 'video.mp4' : 'photo.jpg')}`;
-    const mimeType = asset.type || (estVideo ? 'video/mp4' : 'image/jpeg');
+    const nomFichier = `app_upload_${Date.now()}_${asset.fileName || (typeMedia === 'video' ? 'video.mp4' : 'photo.jpg')}`;
+    const mime = asset.type || mimeTypeParDefaut(typeMedia);
 
     try {
-      const publicUrl = await uploaderVersDrive(asset.uri, nomFichier, mimeType, (p) => {
+      const resultat = await uploaderVersDrive(asset.uri, nomFichier, mime, typeMedia, (p) => {
         setProgression(p);
       });
-      setVideoUrl(publicUrl);
+      setVideoUrl(resultat.url);
+      setMimeType(resultat.mimeType);
+      setDriveFileId(resultat.fileId);
+      setMediaType(resultat.mediaType);
       setProgression(1);
-      Alert.alert('Succès', 'Média prêt à être publié sur le flux.');
+      Alert.alert(
+        'Succès',
+        `${typeMedia === 'photo' ? 'Photo' : 'Vidéo'} prête à publier sur le flux.`,
+      );
     } catch (e: any) {
       console.error(e);
       setProgression(null);
@@ -165,13 +170,13 @@ export default function CreateScreen(): React.JSX.Element {
 
   const choisirDepuisGalerie = (type: 'photo' | 'video') => {
     launchImageLibrary({ mediaType: type, quality: 0.8 }, (res) => {
-      if (res.assets?.[0]) traiterMediaSelectionne(res.assets[0]);
+      if (res.assets?.[0]) traiterMediaSelectionne(res.assets[0], type);
     });
   };
 
   const capturerViaCamera = (type: 'photo' | 'video') => {
     launchCamera({ mediaType: type, quality: 0.8, videoQuality: 'high', durationLimit: 30 }, (res) => {
-      if (res.assets?.[0]) traiterMediaSelectionne(res.assets[0]);
+      if (res.assets?.[0]) traiterMediaSelectionne(res.assets[0], type);
     });
   };
 
@@ -200,6 +205,8 @@ export default function CreateScreen(): React.JSX.Element {
         shares: 0,
         createdAt: Date.now(),
         mediaType,
+        mimeType,
+        driveFileId,
         hashtags: tags,
         typePublication: ajouterQuiz ? 'media_quiz' : 'media',
       };

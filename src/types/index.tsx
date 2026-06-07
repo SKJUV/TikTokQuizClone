@@ -26,4 +26,6 @@ export interface PostTikTok {
   correctAnswers?: Record<string, { displayName: string; email: string }>;
   typePublication?: 'media' | 'quiz_seul' | 'media_quiz';
   quizApresVideo?: boolean;
+  mimeType?: string;
+  driveFileId?: string;
 }
