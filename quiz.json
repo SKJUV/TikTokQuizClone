@@ -4,6 +4,8 @@
     "description": "TP1 - Architecture des Systèmes Mobiles 🧠 #genielogiciel #react",
     "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     "mediaType": "video",
+    "typePublication": "quiz_seul",
+    "quizApresVideo": false,
     "createdAt": 1717500000000,
     "likes": 0,
     "shares": 0,

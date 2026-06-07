@@ -36,7 +36,7 @@ describe('feedHelpers', () => {
 
   test('convertirLienDrive transforms share links', () => {
     expect(convertirLienDrive('https://drive.google.com/file/d/abc123/view')).toBe(
-      'https://drive.google.com/uc?export=download&id=abc123',
+      'https://drive.usercontent.google.com/download?id=abc123&export=download&confirm=t',
     );
   });
 

@@ -24,4 +24,6 @@ export interface PostTikTok {
   comments?: Record<string, CommentairePost>;
   likedBy?: Record<string, boolean>;
   correctAnswers?: Record<string, { displayName: string; email: string }>;
+  typePublication?: 'media' | 'quiz_seul' | 'media_quiz';
+  quizApresVideo?: boolean;
 }

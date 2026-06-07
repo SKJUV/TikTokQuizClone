@@ -24,13 +24,21 @@ export default function App(): React.JSX.Element {
     // Supprimer certains warnings envahissants
     LogBox.ignoreLogs(['Setting a timer', 'Require cycle:']);
 
-    // Installer un handler global JS pour éviter que l'app ne se ferme sur erreurs non gérées
-    const globalHandler = (error: any) => {
-      console.error('Global error captured', error);
+    // Chaîner le handler par défaut pour ne pas masquer les erreurs React Native
+    // @ts-ignore
+    const previousHandler = global.ErrorUtils?.getGlobalHandler?.();
+
+    const globalHandler = (error: any, isFatal?: boolean) => {
+      console.error('Global error captured', error, isFatal);
       try {
-        Alert.alert('Erreur', 'Une erreur est survenue, l\'application continue de fonctionner.');
+        if (isFatal) {
+          Alert.alert('Erreur', error?.message || 'Une erreur est survenue.');
+        }
       } catch {
         // ignore
+      }
+      if (typeof previousHandler === 'function') {
+        previousHandler(error, isFatal);
       }
     };
 
@@ -39,6 +47,14 @@ export default function App(): React.JSX.Element {
       // @ts-ignore
       global.ErrorUtils.setGlobalHandler(globalHandler);
     }
+
+    return () => {
+      // @ts-ignore
+      if (previousHandler && global.ErrorUtils?.setGlobalHandler) {
+        // @ts-ignore
+        global.ErrorUtils.setGlobalHandler(previousHandler);
+      }
+    };
   }, []);
 
   if (chargement) {

@@ -2,23 +2,52 @@ import { PostTikTok } from '../types';
 import { DRIVE_MOCK_TOKEN } from '@env';
 
 export const VIDEO_PAR_DEFAUT = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+export const PHOTO_PAR_DEFAUT =
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=720&q=80';
 
 const quizLocal = require('../../quiz.json') as Record<string, Omit<PostTikTok, 'id'>>;
 
 export const urlValide = (url?: string) => !!url && /^https?:\/\//i.test(url);
 
-// Google Drive Link Converter
+export const extraireIdDrive = (url?: string): string | null => {
+  if (!url) return null;
+  const matchFileD = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (matchFileD?.[1]) return matchFileD[1];
+  const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchId?.[1]) return matchId[1];
+  return null;
+};
+
+// Google Drive Link Converter — URLs compatibles lecteurs mobiles (ExoPlayer / Image)
 export const convertirLienDrive = (url?: string): string => {
   if (!url) return '';
-  const matchFileD = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (matchFileD && matchFileD[1]) {
-    return `https://drive.google.com/uc?export=download&id=${matchFileD[1]}`;
-  }
-  const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (matchId && matchId[1]) {
-    return `https://drive.google.com/uc?export=download&id=${matchId[1]}`;
+  const fileId = extraireIdDrive(url);
+  if (fileId) {
+    return `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
   }
   return url;
+};
+
+/** Liste de secours si la première URL échoue (Drive → formats alternatifs → média par défaut). */
+export const resoudreUrlsMedia = (url: string | undefined, mediaType: 'photo' | 'video'): string[] => {
+  const urls: string[] = [];
+  const fileId = extraireIdDrive(url);
+
+  if (fileId) {
+    urls.push(`https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`);
+    urls.push(`https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`);
+    urls.push(`https://drive.google.com/uc?id=${fileId}&export=download`);
+  } else if (urlValide(url)) {
+    urls.push(url!);
+  }
+
+  if (mediaType === 'video') {
+    urls.push(VIDEO_PAR_DEFAUT);
+  } else {
+    urls.push(PHOTO_PAR_DEFAUT);
+  }
+
+  return [...new Set(urls)];
 };
 
 // Hashtag extractor
@@ -97,7 +126,7 @@ export const uploaderVersDrive = async (
             console.warn("Impossible de changer les permissions du fichier sur Drive.");
           }
 
-          const publicUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+          const publicUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
           resolve(publicUrl);
         } catch (err) {
           reject(err);
@@ -125,36 +154,43 @@ export type PostNorm = PostTikTok & {
   createdAt: number;
   hashtags: string[];
   correctAnswers: Record<string, { displayName: string; email: string }>;
+  urlsMedia: string[];
 };
 
 export const normaliserPost = (id: string, post: any): PostNorm => {
-  const convertedUrl = convertirLienDrive(post.videoUrl);
-  const description = post.description || 'Quiz communautaire';
+  const source = post && typeof post === 'object' ? post : {};
+  const rawUrl = source.videoUrl || '';
+  const mediaType: 'photo' | 'video' = source.mediaType === 'photo' ? 'photo' : 'video';
+  const urlsCandidates = resoudreUrlsMedia(rawUrl, mediaType);
+  const description = source.description || 'Quiz communautaire';
   return {
-    id: post.id ?? id,
-    videoUrl: urlValide(convertedUrl) ? convertedUrl : VIDEO_PAR_DEFAUT,
-    auteur: post.auteur || 'Anonyme',
+    id: source.id ?? id,
+    videoUrl: urlsCandidates[0] || (mediaType === 'photo' ? PHOTO_PAR_DEFAUT : VIDEO_PAR_DEFAUT),
+    urlsMedia: urlsCandidates,
+    auteur: source.auteur || 'Anonyme',
     description,
-    quiz: post.quiz
+    quiz: source.quiz
       ? {
-          question: post.quiz.question || 'Question indisponible',
+          question: source.quiz.question || 'Question indisponible',
           options:
-            Array.isArray(post.quiz.options) && post.quiz.options.length >= 4
-              ? post.quiz.options.slice(0, 4)
+            Array.isArray(source.quiz.options) && source.quiz.options.length >= 4
+              ? source.quiz.options.slice(0, 4)
               : ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
-          reponseCorrecte: typeof post.quiz.reponseCorrecte === 'number' ? post.quiz.reponseCorrecte : 0,
+          reponseCorrecte: typeof source.quiz.reponseCorrecte === 'number' ? source.quiz.reponseCorrecte : 0,
         }
       : undefined,
-    likes: typeof post.likes === 'number' ? post.likes : 0,
-    shares: typeof post.shares === 'number' ? post.shares : 0,
-    likedBy: post.likedBy || {},
-    comments: post.comments || undefined,
-    mediaType: post.mediaType === 'photo' ? 'photo' : 'video',
-    createdAt: typeof post.createdAt === 'number' ? post.createdAt : Date.now(),
-    hashtags: Array.isArray(post.hashtags)
-      ? post.hashtags.map((tag: string) => tag.toLowerCase())
+    likes: typeof source.likes === 'number' ? source.likes : 0,
+    shares: typeof source.shares === 'number' ? source.shares : 0,
+    likedBy: source.likedBy || {},
+    comments: source.comments || undefined,
+    mediaType: source.mediaType === 'photo' ? 'photo' : 'video',
+    createdAt: typeof source.createdAt === 'number' ? source.createdAt : Date.now(),
+    hashtags: Array.isArray(source.hashtags)
+      ? source.hashtags.map((tag: string) => tag.toLowerCase())
       : extraireHashtags(description),
-    correctAnswers: post.correctAnswers || {},
+    correctAnswers: source.correctAnswers || {},
+    typePublication: source.typePublication,
+    quizApresVideo: source.quizApresVideo === true,
   };
 };
 
@@ -165,6 +201,8 @@ export default {
   VIDEO_PAR_DEFAUT,
   urlValide,
   convertirLienDrive,
+  extraireIdDrive,
+  resoudreUrlsMedia,
   extraireHashtags,
   uploaderVersDrive,
   normaliserPost,
