@@ -87,4 +87,4 @@ screenshot.png
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-env
+.env
