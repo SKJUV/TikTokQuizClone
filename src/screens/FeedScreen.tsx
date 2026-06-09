@@ -28,6 +28,7 @@ import Video from 'react-native-video';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { normaliserPost, postsLocaux, PostNorm, resoudreUrlsMedia, extraireIdDrive } from '../utils/feedHelpers';
+import { DRIVE_MOCK_TOKEN } from '@env';
 
 const ECRAN_LARGEUR = Dimensions.get('window').width;
 
@@ -77,6 +78,39 @@ const DegradeFlou = ({ hauteur }: { hauteur: number }) => (
     <Rect width={ECRAN_LARGEUR} height={hauteur} fill="url(#overlayGrad)" />
   </Svg>
 );
+
+const FondQuizSeul = ({ hauteur }: { hauteur: number }) => (
+  <Svg width={ECRAN_LARGEUR} height={hauteur} style={StyleSheet.absoluteFill}>
+    <Defs>
+      <LinearGradient id="quizBg" x1="0" y1="0" x2="1" y2="1">
+        <Stop offset="0" stopColor="#1a0a2e" />
+        <Stop offset="0.35" stopColor="#16213e" />
+        <Stop offset="0.65" stopColor="#0f3460" />
+        <Stop offset="1" stopColor="#1a1a2e" />
+      </LinearGradient>
+    </Defs>
+    <Rect width={ECRAN_LARGEUR} height={hauteur} fill="url(#quizBg)" />
+  </Svg>
+);
+
+const AnimFadeIn = ({ delai = 0, children }: { delai?: number; children: React.ReactNode }) => {
+  const opAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(18)).current;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(translateAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]).start();
+    }, delai);
+    return () => clearTimeout(timer);
+  }, [delai, opAnim, translateAnim]);
+  return (
+    <Animated.View style={{ opacity: opAnim, transform: [{ translateY: translateAnim }] }}>
+      {children}
+    </Animated.View>
+  );
+};
 
 export default function FeedScreen(): React.JSX.Element {
   const [posts, setPosts] = useState<PostNorm[]>([]);
@@ -388,17 +422,43 @@ export default function FeedScreen(): React.JSX.Element {
 
   const renderMedia = (item: PostNorm, index: number) => {
     const estVisible = index === indexActuel;
+    const estAdjacent = index === indexActuel - 1 || index === indexActuel + 1 || index === indexActuel + 2;
+
+    if (!estVisible && !estAdjacent) {
+      return <View style={[styles.mediaPlaceholder, { height: hauteurPage }]} />;
+    }
+
     const typeAffichage = obtenirTypeAffichage(item);
     const mode = getModeQuiz(item);
     const quizTermine = phaseOverlay === 'termine';
     const videoFinie = mode === 'apres_video' && phaseOverlay !== 'cache';
     const urlLecture = obtenirUrlMedia(item);
 
-    if (!estVisible) {
-      return <View style={[styles.mediaPlaceholder, { height: hauteurPage }]} />;
+    const headersObj = (urlLecture.includes('drive.google.com') || urlLecture.includes('drive.usercontent.google.com')) && DRIVE_MOCK_TOKEN
+      ? { Authorization: `Bearer ${DRIVE_MOCK_TOKEN}` }
+      : undefined;
+
+    const sourceMedia = {
+      uri: urlLecture,
+      ...(headersObj ? { headers: headersObj } : {})
+    };
+
+    if (typeAffichage === 'video' && mode === 'inline' && item.typePublication === 'quiz_seul' && estVisible) {
+      return (
+        <View style={[styles.mediaPlaceholder, { height: hauteurPage }]}>
+          <FondQuizSeul hauteur={hauteurPage} />
+        </View>
+      );
     }
 
-    if (mediasEnErreur[item.id]) {
+    if (mediasEnErreur[item.id] && estVisible) {
+      if (item.typePublication === 'quiz_seul') {
+        return (
+          <View style={[styles.mediaPlaceholder, { height: hauteurPage }]}>
+            <FondQuizSeul hauteur={hauteurPage} />
+          </View>
+        );
+      }
       return (
         <View style={[styles.mediaPlaceholder, styles.mediaErreur, { height: hauteurPage }]}>
           <Text style={styles.mediaErreurTexte}>Média indisponible</Text>
@@ -429,7 +489,7 @@ export default function FeedScreen(): React.JSX.Element {
         <View style={[styles.mediaPlein, { height: hauteurPage }]}>
           <Image
             key={`${item.id}-${urlLecture}`}
-            source={{ uri: urlLecture }}
+            source={sourceMedia}
             style={[styles.mediaPlein, { height: hauteurPage }]}
             resizeMode="cover"
             onLoad={() => {
@@ -446,7 +506,7 @@ export default function FeedScreen(): React.JSX.Element {
       );
     }
 
-    if (!videoPret) {
+    if (estVisible && !videoPret) {
       return (
         <View style={[styles.mediaPlaceholder, styles.mediaChargement, { height: hauteurPage }]}>
           <ActivityIndicator color="#fe2c55" size="large" />
@@ -458,15 +518,24 @@ export default function FeedScreen(): React.JSX.Element {
       <ErrorBoundary>
         <Video
           key={`${item.id}-${urlLecture}`}
-          source={{ uri: urlLecture }}
+          source={sourceMedia}
           style={[styles.mediaPlein, { height: hauteurPage }]}
           resizeMode="cover"
           repeat={mode !== 'apres_video' || quizTermine}
-          paused={!!postCommentaire || (mode === 'apres_video' && videoFinie && phaseOverlay !== 'termine')}
+          paused={!estVisible || !!postCommentaire || (mode === 'apres_video' && videoFinie && phaseOverlay !== 'termine')}
+          muted={!estVisible}
           playInBackground={false}
           playWhenInactive={false}
           ignoreSilentSwitch="ignore"
           controls={false}
+          automaticallyWaitsToMinimizeStalling={true}
+          bufferConfig={{
+            minBufferMs: 4000,
+            maxBufferMs: 12000,
+            bufferForPlaybackMs: 1000,
+            bufferForPlaybackAfterRebufferMs: 2000
+          }}
+          preventsDisplaySleepDuringVideoPlayback={estVisible}
           onLoad={() => {
             setMediasEnErreur((prev) => {
               if (!prev[item.id]) return prev;
@@ -476,7 +545,7 @@ export default function FeedScreen(): React.JSX.Element {
             });
           }}
           onEnd={() => {
-            if (index !== indexActuel || mode !== 'apres_video' || phaseOverlay !== 'cache') return;
+            if (!estVisible || mode !== 'apres_video' || phaseOverlay !== 'cache') return;
             afficherOverlay();
           }}
           onError={() => gererErreurMedia(item)}
@@ -501,56 +570,58 @@ export default function FeedScreen(): React.JSX.Element {
         <DegradeFlou hauteur={hauteurPage} />
 
         <View style={styles.overlayContenu}>
-          {phaseOverlay === 'invitation' ? (
-            <>
-              <Text style={styles.overlayTitre}>Quiz disponible</Text>
-              <Text style={styles.overlaySousTitre}>
-                {item.mediaType === 'video'
-                  ? 'La vidéo est terminée. Souhaitez-vous répondre au quiz ?'
-                  : 'Un quiz accompagne cette publication. Voulez-vous y répondre ?'}
-              </Text>
-              <View style={styles.overlayBoutonsChoix}>
-                <TouchableOpacity style={styles.boutonPasser} onPress={estomperOverlay}>
-                  <Text style={styles.boutonPasserTexte}>Passer</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.boutonRepondre} onPress={() => setPhaseOverlay('actif')}>
-                  <Text style={styles.boutonRepondreTexte}>Répondre</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={styles.overlayTitre}>Question</Text>
-              <Text style={styles.overlayQuestion}>{quiz.question}</Text>
-              {aDejaRepondu && <Text style={styles.badgeRepondu}>✓ Déjà acquis</Text>}
-              {quiz.options.map((option, idx) => {
-                let bg = 'rgba(255,255,255,0.1)';
-                let border = 'rgba(255,255,255,0.2)';
-                if (reponseSelectionnee !== null) {
-                  if (idx === quiz.reponseCorrecte) {
-                    bg = 'rgba(46,204,113,0.25)';
-                    border = '#2ecc71';
-                  } else if (idx === reponseSelectionnee) {
-                    bg = 'rgba(231,76,60,0.25)';
-                    border = '#e74c3c';
-                  }
-                }
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.boutonOptionOverlay, { backgroundColor: bg, borderColor: border }]}
-                    onPress={() => validerReponse(item.id, idx, quiz.reponseCorrecte)}
-                    disabled={reponseSelectionnee !== null || aDejaRepondu}
-                  >
-                    <Text style={styles.optionText}>{option}</Text>
+          <View style={styles.carteQuizOverlay}>
+            {phaseOverlay === 'invitation' ? (
+              <>
+                <Text style={styles.overlayTitre}>Quiz disponible</Text>
+                <Text style={styles.overlaySousTitre}>
+                  {item.mediaType === 'video'
+                    ? 'La vidéo est terminée. Souhaitez-vous répondre au quiz ?'
+                    : 'Un quiz accompagne cette publication. Voulez-vous y répondre ?'}
+                </Text>
+                <View style={styles.overlayBoutonsChoix}>
+                  <TouchableOpacity style={styles.boutonPasser} onPress={estomperOverlay}>
+                    <Text style={styles.boutonPasserTexte}>Passer</Text>
                   </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity style={styles.boutonPasserBas} onPress={estomperOverlay}>
-                <Text style={styles.boutonPasserTexte}>Fermer le quiz</Text>
-              </TouchableOpacity>
-            </>
-          )}
+                  <TouchableOpacity style={styles.boutonRepondre} onPress={() => setPhaseOverlay('actif')}>
+                    <Text style={styles.boutonRepondreTexte}>Répondre</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.overlayTitre}>Question</Text>
+                <Text style={styles.overlayQuestion}>{quiz.question}</Text>
+                {aDejaRepondu && <Text style={styles.badgeRepondu}>✓ Déjà acquis</Text>}
+                {quiz.options.map((option, idx) => {
+                  let bg = 'rgba(255,255,255,0.06)';
+                  let border = 'rgba(255,255,255,0.15)';
+                  if (reponseSelectionnee !== null) {
+                    if (idx === quiz.reponseCorrecte) {
+                      bg = 'rgba(46,204,113,0.25)';
+                      border = '#2ecc71';
+                    } else if (idx === reponseSelectionnee) {
+                      bg = 'rgba(231,76,60,0.25)';
+                      border = '#e74c3c';
+                    }
+                  }
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.boutonOptionOverlay, { backgroundColor: bg, borderColor: border }]}
+                      onPress={() => validerReponse(item.id, idx, quiz.reponseCorrecte)}
+                      disabled={reponseSelectionnee !== null || aDejaRepondu}
+                    >
+                      <Text style={styles.optionText}>{option}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity style={styles.boutonPasserBas} onPress={estomperOverlay}>
+                  <Text style={styles.boutonPasserTexte}>Fermer le quiz</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
       </Animated.View>
     );
@@ -605,10 +676,12 @@ export default function FeedScreen(): React.JSX.Element {
 
               {afficherQuizInline && (
                 <View style={styles.zoneQuizCard}>
-                  <View style={styles.enteteQuizCard}>
-                    <Text style={styles.questionText}>{quiz.question}</Text>
-                    {aDejaRepondu && <Text style={styles.badgeRepondu}>✓ Acquis</Text>}
-                  </View>
+                  <AnimFadeIn delai={100}>
+                    <View style={styles.enteteQuizCard}>
+                      <Text style={styles.questionText}>{quiz.question}</Text>
+                      {aDejaRepondu && <Text style={styles.badgeRepondu}>✓ Acquis</Text>}
+                    </View>
+                  </AnimFadeIn>
                   {quiz.options.map((option, idx) => {
                     let bg = 'rgba(255,255,255,0.08)';
                     let border = 'rgba(255,255,255,0.1)';
@@ -622,14 +695,15 @@ export default function FeedScreen(): React.JSX.Element {
                       }
                     }
                     return (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[styles.boutonOption, { backgroundColor: bg, borderColor: border }]}
-                        onPress={() => validerReponse(item.id, idx, quiz.reponseCorrecte)}
-                        disabled={reponseSelectionnee !== null || aDejaRepondu}
-                      >
-                        <Text style={styles.optionText}>{option}</Text>
-                      </TouchableOpacity>
+                      <AnimFadeIn key={idx} delai={250 + idx * 120}>
+                        <TouchableOpacity
+                          style={[styles.boutonOption, { backgroundColor: bg, borderColor: border }]}
+                          onPress={() => validerReponse(item.id, idx, quiz.reponseCorrecte)}
+                          disabled={reponseSelectionnee !== null || aDejaRepondu}
+                        >
+                          <Text style={styles.optionText}>{option}</Text>
+                        </TouchableOpacity>
+                      </AnimFadeIn>
                     );
                   })}
                 </View>
@@ -802,6 +876,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 40,
+  },
+  carteQuizOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 8,
   },
   overlayTitre: {
     color: '#fff',

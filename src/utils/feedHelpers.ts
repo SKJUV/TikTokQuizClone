@@ -251,7 +251,8 @@ export const normaliserPost = (id: string, post: any): PostNorm => {
       ? source.hashtags.map((tag: string) => tag.toLowerCase())
       : extraireHashtags(description),
     correctAnswers: source.correctAnswers || {},
-    typePublication: source.typePublication,
+    typePublication: source.typePublication
+      || (source.quiz ? (rawUrl && rawUrl !== VIDEO_PAR_DEFAUT ? 'media_quiz' : 'quiz_seul') : 'media'),
     quizApresVideo: source.quizApresVideo === true,
   };
 };
